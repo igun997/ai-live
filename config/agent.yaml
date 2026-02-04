@@ -66,9 +66,9 @@ languages:
   default: "en"
   supported:
     en:
-      tts_voice: "en-US-AriaNeural"
+      tts_voice: "Kore"
     fr:
-      tts_voice: "fr-FR-VivienneMultilingualNeural"
+      tts_voice: "Kore"
 
 stt:
   model_size: "small"
@@ -76,10 +76,9 @@ stt:
   compute_type: "float16"
 
 tts:
-  voice: "fr-FR-VivienneMultilingualNeural"
-  rate: "+0%"
-  volume: "+0%"
-  pitch: "+0Hz"
+  model: "gemini-2.5-flash-preview-tts"
+  voice_name: "Kore"
+  sample_rate: 24000
 
 llm:
   model: "gemini-2.5-flash"

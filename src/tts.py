@@ -1,49 +1,90 @@
-"""Text-to-Speech engine using Edge-TTS (Microsoft Neural Voices)."""
+"""Text-to-Speech engine using Gemini TTS (gemini-2.5-flash-preview-tts)."""
 
 import io
 import logging
+import wave
 
-import edge_tts
+from google import genai
+from google.genai import types
 
 from src import config
 
 logger = logging.getLogger(__name__)
 
+_client: genai.Client | None = None
+
+
+def _get_client() -> genai.Client:
+    """Lazy-init the Gemini genai client."""
+    global _client
+    if _client is None:
+        _client = genai.Client(api_key=config.gemini_api_key())
+    return _client
+
+
+def _pcm_to_wav(pcm_data: bytes, sample_rate: int = 24000,
+                num_channels: int = 1, sample_width: int = 2) -> bytes:
+    """Wrap raw PCM bytes in a WAV header."""
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wf:
+        wf.setnchannels(num_channels)
+        wf.setsampwidth(sample_width)
+        wf.setframerate(sample_rate)
+        wf.writeframes(pcm_data)
+    return buf.getvalue()
+
 
 def load():
-    """No-op — Edge-TTS has no local models to preload."""
-    voice = config.get("tts.voice", "fr-FR-VivienneMultilingualNeural")
-    logger.info("TTS ready (edge-tts, voice=%s). No models to preload.", voice)
+    """Initialise the Gemini TTS client and log readiness."""
+    _get_client()
+    model = config.get("tts.model", "gemini-2.5-flash-preview-tts")
+    voice = config.get("tts.voice_name", "Kore")
+    logger.info("TTS ready (Gemini %s, voice=%s).", model, voice)
 
 
 async def synthesize(text: str, detected_language: str = "fr") -> bytes:
-    """Synthesize text to MP3 audio bytes using Edge-TTS.
+    """Synthesize text to WAV audio bytes using Gemini TTS.
 
     Args:
         text: The text to speak.
         detected_language: The detected language code (unused — voice is fixed in config).
 
     Returns:
-        MP3-format audio bytes.
+        WAV-format audio bytes (PCM 24 kHz mono 16-bit).
     """
-    voice = config.get("tts.voice", "fr-FR-VivienneMultilingualNeural")
-    rate = config.get("tts.rate", "+0%")
-    volume = config.get("tts.volume", "+0%")
-    pitch = config.get("tts.pitch", "+0Hz")
+    client = _get_client()
+    model = config.get("tts.model", "gemini-2.5-flash-preview-tts")
+    voice_name = config.get("tts.voice_name", "Kore")
+    sample_rate = config.get("tts.sample_rate", 24000)
 
-    logger.info("TTS: voice=%s, rate=%s, volume=%s", voice, rate, volume)
+    logger.info("TTS: model=%s, voice=%s, lang=%s", model, voice_name, detected_language)
 
-    communicate = edge_tts.Communicate(text, voice, rate=rate, volume=volume, pitch=pitch)
-    buf = io.BytesIO()
+    response = await client.aio.models.generate_content(
+        model=model,
+        contents=f"Say: {text}",
+        config=types.GenerateContentConfig(
+            response_modalities=["AUDIO"],
+            speech_config=types.SpeechConfig(
+                voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                        voice_name=voice_name,
+                    ),
+                ),
+            ),
+        ),
+    )
 
-    async for chunk in communicate.stream():
-        if chunk["type"] == "audio":
-            buf.write(chunk["data"])
-
-    mp3_bytes = buf.getvalue()
-
-    if not mp3_bytes:
+    if (not response.candidates
+            or not response.candidates[0].content
+            or not response.candidates[0].content.parts):
         logger.warning("TTS produced no audio for text: %s", text[:80])
         return b""
 
-    return mp3_bytes
+    part = response.candidates[0].content.parts[0]
+    pcm_data = part.inline_data.data
+    if not pcm_data:
+        logger.warning("TTS returned empty audio data for text: %s", text[:80])
+        return b""
+
+    wav_bytes = _pcm_to_wav(pcm_data, sample_rate=sample_rate)
+    return wav_bytes
