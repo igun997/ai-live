@@ -45,13 +45,13 @@ print('Kokoro French pipeline + voice ready.')"
 	@echo "All models downloaded. You can now run with: make run-offline"
 
 run: ## Run the server (production)
-	$(UVICORN) src.main:app --host 0.0.0.0 --port 8000
+	$(UVICORN) src.main:app --host 0.0.0.0 --port 8001
 
 run-offline: ## Run the server in offline mode (no HuggingFace checks)
-	HF_HUB_OFFLINE=1 $(UVICORN) src.main:app --host 0.0.0.0 --port 8000
+	HF_HUB_OFFLINE=1 $(UVICORN) src.main:app --host 0.0.0.0 --port 8001
 
 dev: ## Run the server with auto-reload (development)
-	$(UVICORN) src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir src
+	$(UVICORN) src.main:app --host 0.0.0.0 --port 8001 --reload --reload-dir src
 
 test: ## Run tests
 	$(PYTHON) -m pytest tests/ -v
