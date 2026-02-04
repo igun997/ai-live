@@ -57,13 +57,16 @@ def transcribe(audio_bytes: bytes) -> Tuple[str, str]:
         num_samples = int(len(audio_data) * 16000 / sample_rate)
         audio_data = signal.resample(audio_data, num_samples)
 
+    # First attempt with VAD filter (lower threshold for browser audio)
     segments, info = model.transcribe(
         audio_data,
         beam_size=5,
         vad_filter=True,
         vad_parameters=dict(
-            min_silence_duration_ms=500,
-            speech_pad_ms=300,
+            threshold=0.3,
+            min_silence_duration_ms=600,
+            min_speech_duration_ms=100,
+            speech_pad_ms=400,
         ),
     )
 
@@ -72,6 +75,16 @@ def transcribe(audio_bytes: bytes) -> Tuple[str, str]:
         text_parts.append(segment.text.strip())
 
     full_text = " ".join(text_parts).strip()
+
+    # If VAD filtered everything out, retry without VAD
+    if not full_text:
+        logger.info("VAD filtered all audio, retrying without VAD filter")
+        segments, info = model.transcribe(audio_data, beam_size=5, vad_filter=False)
+        text_parts = []
+        for segment in segments:
+            text_parts.append(segment.text.strip())
+        full_text = " ".join(text_parts).strip()
+
     detected_lang = info.language or "en"
 
     logger.info("STT: [%s] %s", detected_lang, full_text)

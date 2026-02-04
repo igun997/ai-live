@@ -66,6 +66,9 @@
         if (msg.text) {
           addMessage("user", msg.text, msg.language);
           langBadge.textContent = (msg.language || "--").toUpperCase();
+        } else {
+          // Empty transcription — nothing heard, reset UI
+          hideProcessing();
         }
         setStatus("connected", "Connected");
         break;
@@ -244,24 +247,33 @@
 
   // ── Event Listeners ────────────────────────────────────────
 
-  // Press-and-hold to record
-  micBtn.addEventListener("pointerdown", (e) => {
+  // Press-and-hold to record — touch events for mobile, pointer for desktop
+  function onMicDown(e) {
     e.preventDefault();
+    e.stopPropagation();
     if (!sessionActive) return;
     startRecording();
-  });
+  }
 
-  micBtn.addEventListener("pointerup", (e) => {
+  function onMicUp(e) {
     e.preventDefault();
-    stopRecording();
-  });
-
-  micBtn.addEventListener("pointerleave", (e) => {
+    e.stopPropagation();
     if (isRecording) stopRecording();
-  });
+  }
 
-  // Prevent context menu on long press (mobile)
+  // Touch events (mobile-first)
+  micBtn.addEventListener("touchstart", onMicDown, { passive: false });
+  micBtn.addEventListener("touchend", onMicUp, { passive: false });
+  micBtn.addEventListener("touchcancel", onMicUp, { passive: false });
+
+  // Mouse events (desktop fallback)
+  micBtn.addEventListener("mousedown", onMicDown);
+  micBtn.addEventListener("mouseup", onMicUp);
+  micBtn.addEventListener("mouseleave", (e) => { if (isRecording) stopRecording(); });
+
+  // Prevent context menu and text selection on long press (mobile)
   micBtn.addEventListener("contextmenu", (e) => e.preventDefault());
+  micBtn.addEventListener("selectstart", (e) => e.preventDefault());
 
   // End session
   endBtn.addEventListener("click", () => {
