@@ -1,0 +1,45 @@
+# Virtual environment
+venv/
+.venv/
+
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Models and voices (large binary files)
+*.pth
+*.pt
+voices/
+kokoro-v1_0.pth
+config.json
+
+# Audio outputs
+outputs/
+*.wav
+*.mp3
+*.aac
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Plan file
+PLAN.md

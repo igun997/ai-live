@@ -1,0 +1,25 @@
+# Web framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+websockets>=12.0
+python-multipart>=0.0.6
+
+# STT - Whisper
+faster-whisper>=1.0.0
+
+# TTS - Kokoro
+kokoro>=0.9.2
+soundfile>=0.12.0
+pydub>=0.25.0
+
+# LLM - Gemini
+google-generativeai>=0.8.0
+
+# Core
+numpy>=1.24.0
+torch>=2.0.0
+pyyaml>=6.0
+python-dotenv>=1.0.0
+
+# Audio processing
+av>=12.0.0
