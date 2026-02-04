@@ -175,21 +175,53 @@
 
   // ── Audio Playback ─────────────────────────────────────────
 
-  function playAudio(arrayBuffer) {
+  function ensureAudioCtx() {
     if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
+    // Resume if suspended (browsers require user gesture)
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume().catch(() => {});
+    }
+    return audioCtx;
+  }
 
-    audioCtx.decodeAudioData(arrayBuffer.slice(0), (buffer) => {
-      const source = audioCtx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(audioCtx.destination);
-      source.onended = () => hideProcessing();
-      source.start(0);
-    }, (err) => {
-      console.error("Audio decode error:", err);
+  function playAudio(arrayBuffer) {
+    const ctx = ensureAudioCtx();
+
+    ctx.decodeAudioData(arrayBuffer.slice(0))
+      .then((buffer) => {
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.onended = () => hideProcessing();
+        source.start(0);
+      })
+      .catch((err) => {
+        console.error("Audio decode error:", err);
+        // Fallback: try playing as blob via <audio> element
+        playAudioFallback(arrayBuffer);
+      });
+  }
+
+  function playAudioFallback(arrayBuffer) {
+    try {
+      const blob = new Blob([arrayBuffer], { type: "audio/wav" });
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        hideProcessing();
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        hideProcessing();
+      };
+      audio.play().catch(() => hideProcessing());
+    } catch (e) {
+      console.error("Fallback audio playback failed:", e);
       hideProcessing();
-    });
+    }
   }
 
   // ── UI Helpers ─────────────────────────────────────────────
@@ -251,6 +283,8 @@
   function onMicDown(e) {
     e.preventDefault();
     e.stopPropagation();
+    // Unlock AudioContext on user gesture so playback works later
+    ensureAudioCtx();
     if (!sessionActive) return;
     startRecording();
   }
