@@ -114,7 +114,10 @@ async def websocket_audio(ws: WebSocket):
             # Handle binary messages (audio data)
             if "bytes" in message:
                 audio_webm = message["bytes"]
-                if not audio_webm:
+                if not audio_webm or len(audio_webm) < 1000:
+                    # Skip empty or too-small chunks (corrupt/incomplete WebM)
+                    logger.debug("Skipping tiny audio chunk (%d bytes)", len(audio_webm) if audio_webm else 0)
+                    await ws.send_json({"type": "transcription", "text": "", "language": ""})
                     continue
 
                 try:

@@ -21,8 +21,12 @@
   let mediaRecorder = null;
   let audioChunks = [];
   let isRecording = false;
+  let isPlaying = false;
+  let recordStartTime = 0;
   let audioCtx = null;
   let sessionActive = false;
+
+  const MIN_RECORD_MS = 600; // minimum recording duration
 
   // ── WebSocket ──────────────────────────────────────────────
 
@@ -97,7 +101,7 @@
   // ── Audio Capture ──────────────────────────────────────────
 
   async function startRecording() {
-    if (isRecording) return;
+    if (isRecording || isPlaying) return;
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -130,6 +134,7 @@
 
       mediaRecorder.start();
       isRecording = true;
+      recordStartTime = Date.now();
       micBtn.classList.add("recording");
 
     } catch (err) {
@@ -140,8 +145,19 @@
 
   function stopRecording() {
     if (!isRecording || !mediaRecorder) return;
+
+    const elapsed = Date.now() - recordStartTime;
     isRecording = false;
     micBtn.classList.remove("recording");
+
+    if (elapsed < MIN_RECORD_MS) {
+      // Too short — discard and stop tracks
+      mediaRecorder.stream.getTracks().forEach(t => t.stop());
+      mediaRecorder = null;
+      audioChunks = [];
+      return;
+    }
+
     mediaRecorder.stop();
     showProcessing("Transcribing...");
     setStatus("processing", "Processing");
@@ -189,17 +205,18 @@
   function playAudio(arrayBuffer) {
     const ctx = ensureAudioCtx();
 
+    isPlaying = true;
+
     ctx.decodeAudioData(arrayBuffer.slice(0))
       .then((buffer) => {
         const source = ctx.createBufferSource();
         source.buffer = buffer;
         source.connect(ctx.destination);
-        source.onended = () => hideProcessing();
+        source.onended = () => { isPlaying = false; hideProcessing(); };
         source.start(0);
       })
       .catch((err) => {
         console.error("Audio decode error:", err);
-        // Fallback: try playing as blob via <audio> element
         playAudioFallback(arrayBuffer);
       });
   }
@@ -211,13 +228,15 @@
       const audio = new Audio(url);
       audio.onended = () => {
         URL.revokeObjectURL(url);
+        isPlaying = false;
         hideProcessing();
       };
       audio.onerror = () => {
         URL.revokeObjectURL(url);
+        isPlaying = false;
         hideProcessing();
       };
-      audio.play().catch(() => hideProcessing());
+      audio.play().catch(() => { isPlaying = false; hideProcessing(); });
     } catch (e) {
       console.error("Fallback audio playback failed:", e);
       hideProcessing();
