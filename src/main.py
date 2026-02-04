@@ -3,13 +3,14 @@
 import io
 import json
 import logging
+import subprocess
+import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from pydub import AudioSegment
 
 from src import agent
 from src.session import Session, create_session, get_session
@@ -44,13 +45,40 @@ async def index():
 
 
 def _webm_to_wav(webm_bytes: bytes) -> bytes:
-    """Convert WebM/Opus audio from the browser to WAV for Whisper."""
-    audio = AudioSegment.from_file(io.BytesIO(webm_bytes), format="webm")
-    audio = audio.set_channels(1).set_frame_rate(16000).set_sample_width(2)
-    buf = io.BytesIO()
-    audio.export(buf, format="wav")
-    buf.seek(0)
-    return buf.read()
+    """Convert WebM/Opus audio from the browser to WAV for Whisper.
+
+    Uses ffmpeg with temp files to avoid pipe/seek issues with WebM containers.
+    """
+    with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp_in:
+        tmp_in.write(webm_bytes)
+        tmp_in_path = tmp_in.name
+
+    tmp_out_path = tmp_in_path.replace(".webm", ".wav")
+
+    try:
+        result = subprocess.run(
+            [
+                "ffmpeg", "-y",
+                "-i", tmp_in_path,
+                "-ac", "1",
+                "-ar", "16000",
+                "-sample_fmt", "s16",
+                "-f", "wav",
+                tmp_out_path,
+            ],
+            capture_output=True,
+            timeout=15,
+        )
+
+        if result.returncode != 0:
+            stderr = result.stderr.decode(errors="replace")
+            raise RuntimeError(f"ffmpeg failed (code {result.returncode}): {stderr[-300:]}")
+
+        return Path(tmp_out_path).read_bytes()
+
+    finally:
+        Path(tmp_in_path).unlink(missing_ok=True)
+        Path(tmp_out_path).unlink(missing_ok=True)
 
 
 @app.websocket("/ws/audio")

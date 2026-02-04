@@ -27,35 +27,13 @@ def _get_pipeline(lang_code: str):
 
 
 def load():
-    """Pre-load TTS pipelines for all configured languages at startup."""
-    supported = config.get("languages.supported", {})
-    for lang_key, lang_cfg in supported.items():
-        lang_code = lang_cfg.get("tts_lang_code", "a")
-        _get_pipeline(lang_code)
+    """Pre-load French TTS pipeline at startup."""
+    _get_pipeline("f")
 
 
 def _resolve_voice(detected_language: str) -> tuple[str, str]:
-    """Resolve the TTS voice and lang_code from the detected language.
-
-    Returns:
-        (voice_name, lang_code)
-    """
-    supported = config.get("languages.supported", {})
-
-    # Map common Whisper language codes to our config keys
-    lang_map = {
-        "en": "en",
-        "fr": "fr",
-        "id": "en",  # Indonesian -> respond in English
-    }
-
-    lang_key = lang_map.get(detected_language, config.get("languages.default", "en"))
-    lang_cfg = supported.get(lang_key, supported.get("en", {}))
-
-    voice = lang_cfg.get("tts_voice", "af_heart")
-    lang_code = lang_cfg.get("tts_lang_code", "a")
-
-    return voice, lang_code
+    """Always use French voice regardless of detected language."""
+    return "ff_siwis", "f"
 
 
 def synthesize(text: str, detected_language: str = "en") -> bytes:

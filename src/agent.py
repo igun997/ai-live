@@ -58,8 +58,8 @@ def process_audio(audio_bytes: bytes, session: Session) -> Optional[AgentRespons
         detected_language=detected_lang,
     )
 
-    # Determine TTS language — for Indonesian input, respond in English
-    tts_lang = detected_lang if detected_lang in ("en", "fr") else "en"
+    # Always French
+    tts_lang = "fr"
 
     # Record assistant turn
     session.add_turn("assistant", response_text, tts_lang)

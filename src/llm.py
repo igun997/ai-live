@@ -58,12 +58,8 @@ def generate_response(
 
     chat = model.start_chat(history=gemini_history)
 
-    # Add language hint to guide response language
-    lang_hints = {
-        "fr": "(The user is speaking French. Respond in French.)\n",
-        "id": "(The user is speaking Indonesian. Respond in English.)\n",
-    }
-    prefix = lang_hints.get(detected_language, "")
+    # Always respond in French
+    prefix = "(IMPORTANT: You MUST respond in French regardless of the user's language.)\n"
 
     response = chat.send_message(
         f"{prefix}{user_text}",
