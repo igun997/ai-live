@@ -4,7 +4,7 @@ PYTHON := $(VENV)/bin/python
 PIP := $(VENV)/bin/pip
 UVICORN := $(VENV)/bin/uvicorn
 
-.PHONY: help setup install-cuda download-models run dev test lint clean
+.PHONY: help setup install-cuda install-system-deps download-models run run-offline dev test lint clean
 
 help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -25,7 +25,10 @@ $(VENV)/bin/activate:
 install-cuda: setup ## Install PyTorch with CUDA 12.4 support
 	$(PIP) install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 
-download-models: setup ## Download Whisper and Kokoro models
+install-system-deps: ## Install system dependencies (espeak-ng, ffmpeg)
+	sudo apt-get update && sudo apt-get install -y espeak-ng ffmpeg
+
+download-models: setup ## Download Whisper and Kokoro models (requires internet)
 	$(PYTHON) -c "\
 from faster_whisper import WhisperModel; \
 print('Downloading Whisper small model...'); \
@@ -33,16 +36,19 @@ model = WhisperModel('small', device='cpu', compute_type='int8'); \
 print('Whisper model ready.')"
 	$(PYTHON) -c "\
 from kokoro import KPipeline; \
-print('Initializing Kokoro TTS (English)...'); \
-p = KPipeline(lang_code='a'); \
-print('Kokoro English pipeline ready.'); \
 print('Initializing Kokoro TTS (French)...'); \
-p = KPipeline(lang_code='f'); \
-print('Kokoro French pipeline ready.')"
-	@echo "All models downloaded."
+p = KPipeline(lang_code='f', repo_id='hexgrad/Kokoro-82M'); \
+# Pre-download ff_siwis voice by generating a short phrase; \
+for gs, ps, audio in p('Bonjour', voice='ff_siwis', speed=1.0): pass; \
+print('Kokoro French pipeline + voice ready.')"
+	@echo ""
+	@echo "All models downloaded. You can now run with: make run-offline"
 
 run: ## Run the server (production)
 	$(UVICORN) src.main:app --host 0.0.0.0 --port 8000
+
+run-offline: ## Run the server in offline mode (no HuggingFace checks)
+	HF_HUB_OFFLINE=1 $(UVICORN) src.main:app --host 0.0.0.0 --port 8000
 
 dev: ## Run the server with auto-reload (development)
 	$(UVICORN) src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir src

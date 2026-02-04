@@ -2,6 +2,7 @@
 
 import io
 import logging
+import os
 from typing import Dict
 
 import numpy as np
@@ -21,14 +22,32 @@ def _get_pipeline(lang_code: str):
         from kokoro import KPipeline
 
         logger.info("Initializing Kokoro TTS pipeline for lang_code='%s'", lang_code)
-        _pipelines[lang_code] = KPipeline(lang_code=lang_code)
+        _pipelines[lang_code] = KPipeline(lang_code=lang_code, repo_id='hexgrad/Kokoro-82M')
         logger.info("Kokoro TTS pipeline ready for lang_code='%s'", lang_code)
     return _pipelines[lang_code]
 
 
 def load():
-    """Pre-load French TTS pipeline at startup."""
+    """Pre-load French TTS pipeline at startup.
+
+    On first run, models/voices download from HuggingFace.
+    After that, set HF_HUB_OFFLINE=1 env var to skip network checks.
+    """
+    # Check espeak-ng dependency
+    import shutil
+    if not shutil.which("espeak-ng") and not shutil.which("espeak"):
+        logger.error(
+            "espeak-ng is NOT installed. Kokoro TTS requires it for phoneme processing. "
+            "Install with: sudo apt-get install -y espeak-ng"
+        )
+
     _get_pipeline("f")
+
+    # After successful load, log cache hint
+    if not os.environ.get("HF_HUB_OFFLINE"):
+        logger.info(
+            "TIP: Set HF_HUB_OFFLINE=1 to skip HuggingFace network checks after first download."
+        )
 
 
 def _resolve_voice(detected_language: str) -> tuple[str, str]:
