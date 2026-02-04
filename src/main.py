@@ -133,7 +133,7 @@ async def websocket_audio(ws: WebSocket):
 
                 # Run agent pipeline
                 try:
-                    result = agent.process_audio(audio_wav, session)
+                    result = await agent.process_audio(audio_wav, session)
                 except Exception as e:
                     logger.error("Agent pipeline error: %s", e)
                     await ws.send_json({

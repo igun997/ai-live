@@ -223,7 +223,7 @@
 
   function playAudioFallback(arrayBuffer) {
     try {
-      const blob = new Blob([arrayBuffer], { type: "audio/wav" });
+      const blob = new Blob([arrayBuffer], { type: "audio/mpeg" });
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
       audio.onended = () => {

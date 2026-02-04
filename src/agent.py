@@ -27,7 +27,7 @@ def load_models():
     logger.info("All models loaded.")
 
 
-def process_audio(audio_bytes: bytes, session: Session) -> Optional[AgentResponse]:
+async def process_audio(audio_bytes: bytes, session: Session) -> Optional[AgentResponse]:
     """Run the full voice agent pipeline.
 
     1. Transcribe audio (STT)
@@ -65,7 +65,7 @@ def process_audio(audio_bytes: bytes, session: Session) -> Optional[AgentRespons
     session.add_turn("assistant", response_text, tts_lang)
 
     # Step 3: Text-to-Speech
-    audio = tts.synthesize(response_text, tts_lang)
+    audio = await tts.synthesize(response_text, tts_lang)
 
     return AgentResponse(
         user_text=user_text,

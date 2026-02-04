@@ -66,11 +66,9 @@ languages:
   default: "en"
   supported:
     en:
-      tts_voice: "af_heart"
-      tts_lang_code: "a"
+      tts_voice: "en-US-AriaNeural"
     fr:
-      tts_voice: "ff_siwis"
-      tts_lang_code: "f"
+      tts_voice: "fr-FR-VivienneMultilingualNeural"
 
 stt:
   model_size: "small"
@@ -78,9 +76,10 @@ stt:
   compute_type: "float16"
 
 tts:
-  device: "cuda"
-  speed: 1.0
-  sample_rate: 24000
+  voice: "fr-FR-VivienneMultilingualNeural"
+  rate: "+0%"
+  volume: "+0%"
+  pitch: "+0Hz"
 
 llm:
   model: "gemini-2.5-flash"
